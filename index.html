@@ -1,0 +1,1209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Prince Footwear — Purchase, Payment & Expense Ledger</title>
+
+<!-- PWA -->
+<meta name="theme-color" content="#7b1fa2">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Prince Footwear">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%237b1fa2'/><text y='.85em' font-size='52' x='50%25' text-anchor='middle' font-family='Arial' font-weight='bold' fill='white'>PF</text></svg>">
+
+<script>
+// ── INLINE PWA MANIFEST (no separate file needed) ──
+if (location.protocol === 'https:') {
+  (function(){
+    const iconSvg = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='80' fill='%237b1fa2'/><text y='.85em' font-size='240' x='50%25' text-anchor='middle' font-family='Arial' font-weight='bold' fill='white'>PF</text></svg>";
+    const manifest = {
+      name: "Prince Footwear",
+      short_name: "Prince Footwear",
+      description: "Purchase, Payment & Expense Ledger",
+      start_url: "./",
+      scope: "./",
+      display: "standalone",
+      orientation: "portrait",
+      background_color: "#7b1fa2",
+      theme_color: "#7b1fa2",
+      icons: [
+        { src: iconSvg, sizes: "192x192", type: "image/svg+xml", purpose: "any maskable" },
+        { src: iconSvg, sizes: "512x512", type: "image/svg+xml", purpose: "any maskable" }
+      ]
+    };
+    const blob = new Blob([JSON.stringify(manifest)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('link');
+    link.rel = 'manifest'; link.href = url;
+    document.head.appendChild(link);
+  })();
+}
+</script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #f4f6f9;
+    color: #222;
+    padding: 16px;
+  }
+  .header {
+    background: linear-gradient(135deg, #7b1fa2, #4a148c);
+    color: white;
+    padding: 20px 24px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  }
+  .header h1 { font-size: 22px; margin-bottom: 4px; }
+  .header p { opacity: 0.9; font-size: 13px; }
+
+  .summary {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  @media (max-width: 1024px) {
+    .summary { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (max-width: 700px) {
+    .summary { grid-template-columns: repeat(2, 1fr); }
+  }
+  .card {
+    background: white;
+    padding: 16px;
+    border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    border-left: 4px solid #7b1fa2;
+  }
+  .card.green { border-left-color: #0f9d58; }
+  .card.red { border-left-color: #d93025; }
+  .card.yellow { border-left-color: #d29922; }
+  .card.orange { border-left-color: #f57c00; }
+  .card .label { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+  .card .value { font-size: 22px; font-weight: 700; margin-top: 4px; color: #7b1fa2; }
+  .card.green .value { color: #0f9d58; }
+  .card.red .value { color: #d93025; }
+  .card.yellow .value { color: #d29922; }
+  .card.orange .value { color: #f57c00; }
+
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 16px;
+    background: white;
+    padding: 4px;
+    border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  }
+  .tab {
+    flex: 1;
+    padding: 10px;
+    text-align: center;
+    cursor: pointer;
+    border-radius: 8px;
+    font-weight: 600;
+    color: #666;
+    transition: all 0.2s;
+    font-size: 14px;
+  }
+  .tab.active { background: #7b1fa2; color: white; }
+
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .form-card {
+    background: white;
+    padding: 18px;
+    border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    margin-bottom: 16px;
+  }
+  .form-card h3 { font-size: 15px; margin-bottom: 12px; color: #7b1fa2; }
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .form-row.full { grid-template-columns: 1fr; }
+  label { display: block; font-size: 12px; color: #555; margin-bottom: 4px; font-weight: 500; }
+  input, select, textarea {
+    width: 100%;
+    padding: 9px 11px;
+    border: 1px solid #d0d7de;
+    border-radius: 7px;
+    font-size: 14px;
+    font-family: inherit;
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: #7b1fa2;
+    box-shadow: 0 0 0 2px rgba(26,115,232,0.1);
+  }
+  button {
+    background: #7b1fa2;
+    color: white;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 7px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.2s;
+  }
+  button:hover { background: #4a148c; }
+  button.green { background: #0f9d58; }
+  button.green:hover { background: #0a7c44; }
+  button.danger { background: #d93025; padding: 5px 9px; font-size: 12px; }
+  button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  .table-card {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    overflow: hidden;
+  }
+  .table-card h3 {
+    padding: 14px 18px;
+    font-size: 15px;
+    border-bottom: 1px solid #eee;
+    color: #7b1fa2;
+  }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th {
+    background: #f8f9fa;
+    padding: 10px;
+    text-align: left;
+    font-weight: 600;
+    color: #555;
+    border-bottom: 1px solid #eee;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  td { padding: 10px; border-bottom: 1px solid #f0f0f0; }
+  tr:hover { background: #fafbfc; }
+  #partySummaryTable tbody tr:hover { background: #e8f0fe; }
+  td.amount { text-align: right; font-family: 'Consolas', monospace; font-weight: 600; }
+  td.amount.purchase { color: #7b1fa2; }
+  td.amount.payment { color: #0f9d58; }
+
+  .empty { padding: 30px; text-align: center; color: #999; font-size: 13px; }
+
+  .toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #323232;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    z-index: 1000;
+  }
+  .toast.show { opacity: 1; }
+  .toast.error { background: #d93025; }
+  .toast.success { background: #0f9d58; }
+
+  @media (max-width: 600px) {
+    .form-row { grid-template-columns: 1fr; }
+    .header h1 { font-size: 18px; }
+  }
+
+  /* Login screen */
+  #loginScreen {
+    position: fixed;
+    inset: 0;
+    background: linear-gradient(135deg, #7b1fa2, #4a148c);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 20px;
+  }
+  #loginScreen.hidden { display: none; }
+  .login-box {
+    background: white;
+    padding: 32px 28px;
+    border-radius: 14px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    width: 100%;
+    max-width: 360px;
+    text-align: center;
+  }
+  .login-box .logo {
+    font-size: 42px;
+    margin-bottom: 8px;
+  }
+  .login-box h2 {
+    color: #7b1fa2;
+    margin-bottom: 4px;
+    font-size: 20px;
+  }
+  .login-box p {
+    color: #777;
+    font-size: 13px;
+    margin-bottom: 22px;
+  }
+  .login-box label {
+    text-align: left;
+    margin-top: 12px;
+  }
+  .login-box button {
+    width: 100%;
+    padding: 12px;
+    margin-top: 18px;
+    font-size: 15px;
+  }
+  .login-error {
+    color: #d93025;
+    font-size: 13px;
+    margin-top: 10px;
+    min-height: 18px;
+  }
+
+  /* Install prompt banner */
+  #installBanner {
+    display: none;
+    background: linear-gradient(135deg, #0f9d58, #0a7c44);
+    color: white;
+    padding: 12px 16px;
+    border-radius: 10px;
+    margin-bottom: 16px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    box-shadow: 0 4px 12px rgba(15,157,88,0.3);
+  }
+  #installBanner.show { display: flex; }
+  #installBanner .text {
+    flex: 1;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+  #installBanner .text strong { display: block; font-size: 14px; margin-bottom: 2px; }
+  #installBanner button {
+    background: white;
+    color: #0f9d58;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  #installBanner .close-x {
+    background: transparent;
+    color: white;
+    padding: 4px 8px;
+    font-size: 18px;
+    border: none;
+    cursor: pointer;
+  }
+
+  /* iOS install hint */
+  #iosHint {
+    display: none;
+    background: #fff8e1;
+    border-left: 4px solid #f9ab00;
+    padding: 12px 14px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 13px;
+    color: #555;
+    line-height: 1.5;
+    position: relative;
+  }
+  #iosHint.show { display: block; }
+  #iosHint strong { color: #7b1fa2; }
+  #iosHint .close-x {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    background: transparent;
+    border: none;
+    font-size: 18px;
+    color: #999;
+    cursor: pointer;
+  }
+
+  @media (max-width: 600px) {
+    body { padding: 10px; }
+    .header { padding: 16px 18px; }
+    .header h1 { font-size: 18px; }
+    .summary { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .card { padding: 12px 14px; }
+    .card .value { font-size: 18px; }
+    .form-row { grid-template-columns: 1fr; gap: 8px; }
+    .form-card { padding: 14px; }
+    .tab { font-size: 13px; padding: 9px 4px; }
+    button { padding: 12px; width: 100%; font-size: 15px; }
+    button.danger { width: auto; padding: 6px 10px; }
+    table { font-size: 12px; }
+    th, td { padding: 8px 6px; }
+    .login-box { padding: 26px 20px; }
+  }
+
+  /* Hide scrollbars on standalone PWA mode */
+  @media (display-mode: standalone) {
+    body::-webkit-scrollbar { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="logo">👟</div>
+    <h2>Prince Footwear</h2>
+    <p>Please sign in to continue</p>
+    <div style="text-align:left">
+      <label>User ID</label>
+      <input type="text" id="loginId" placeholder="Enter ID" autocomplete="off">
+      <label>Password</label>
+      <input type="password" id="loginPass" placeholder="Enter password">
+    </div>
+    <button onclick="doLogin()">Sign In</button>
+    <div class="login-error" id="loginError"></div>
+    <p style="font-size:11px;color:#999;margin-top:18px;border-top:1px solid #eee;padding-top:14px;">Powered by CA AB</p>
+  </div>
+</div>
+
+<div class="header">
+  <h1>👟 Prince Footwear</h1>
+  <p>Purchase, Payment & Expense Ledger</p>
+</div>
+
+<!-- Install banner (Android/Chrome/Edge) -->
+<div id="installBanner">
+  <div class="text">
+    <strong>📱 Install as App</strong>
+    Add to your home screen for quick access
+  </div>
+  <button onclick="installPWA()">Install</button>
+  <button class="close-x" onclick="hideInstallBanner()" title="Close">×</button>
+</div>
+
+<!-- iOS install hint -->
+<div id="iosHint">
+  <button class="close-x" onclick="hideIosHint()">×</button>
+  <strong>📱 Install on iPhone:</strong><br>
+  Tap the <strong>Share</strong> button below, then scroll and tap <strong>"Add to Home Screen"</strong>.
+</div>
+
+<div class="summary">
+  <div class="card">
+    <div class="label">Total Purchases</div>
+    <div class="value" id="totalPurchases">₹0</div>
+  </div>
+  <div class="card green">
+    <div class="label">Paid to Vendors</div>
+    <div class="value" id="totalPaid">₹0</div>
+  </div>
+  <div class="card red">
+    <div class="label">Vendor Outstanding</div>
+    <div class="value" id="balance">₹0</div>
+  </div>
+  <div class="card yellow">
+    <div class="label">Total Expenses</div>
+    <div class="value" id="totalExpenses">₹0</div>
+  </div>
+  <div class="card orange">
+    <div class="label">Expense Pending</div>
+    <div class="value" id="expensePending">₹0</div>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('purchase')">📦 Purchases</div>
+  <div class="tab" onclick="switchTab('payment')">💰 Payments</div>
+  <div class="tab" onclick="switchTab('expense')">🧾 Expenses</div>
+  <div class="tab" onclick="switchTab('ledger')">📊 Party Ledger</div>
+</div>
+
+<!-- PURCHASE PANEL -->
+<div class="panel active" id="panel-purchase">
+  <div class="form-card">
+    <h3>Add New Purchase</h3>
+    <div class="form-row">
+      <div>
+        <label>Date</label>
+        <input type="date" id="pDate">
+      </div>
+      <div>
+        <label>Party / Vendor Name</label>
+        <input type="text" id="pParty" list="partyList" placeholder="Type or pick" autocomplete="off">
+        <datalist id="partyList"></datalist>
+      </div>
+    </div>
+    <div class="form-row">
+      <div>
+        <label>Invoice Number</label>
+        <input type="text" id="pInvoice" placeholder="e.g. INV-001">
+      </div>
+      <div>
+        <label>Amount (₹)</label>
+        <input type="number" id="pAmount" placeholder="0.00" step="0.01">
+      </div>
+    </div>
+    <div class="form-row full">
+      <div>
+        <label>Remarks (optional)</label>
+        <input type="text" id="pRemarks" placeholder="any notes">
+      </div>
+    </div>
+    <button onclick="addPurchase()" id="pBtn">+ Add Purchase</button>
+  </div>
+
+  <div class="table-card">
+    <h3>Purchase History</h3>
+    <div class="table-wrap">
+      <table id="purchaseTable">
+        <thead>
+          <tr><th>Date</th><th>Party</th><th>Invoice</th><th>Amount</th><th>Remarks</th><th></th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- PAYMENT PANEL -->
+<div class="panel" id="panel-payment">
+  <div class="form-card">
+    <h3>Record Payment</h3>
+    <div class="form-row">
+      <div>
+        <label>Date</label>
+        <input type="date" id="payDate">
+      </div>
+      <div>
+        <label>Party / Vendor Name</label>
+        <input type="text" id="payParty" list="partyList2" placeholder="Type or pick" autocomplete="off">
+        <datalist id="partyList2"></datalist>
+      </div>
+    </div>
+    <div class="form-row">
+      <div>
+        <label>Amount (₹)</label>
+        <input type="number" id="payAmount" placeholder="0.00" step="0.01">
+      </div>
+      <div>
+        <label>Mode</label>
+        <select id="payMode">
+          <option>Cash</option>
+          <option>UPI</option>
+          <option>Bank Transfer</option>
+          <option>Cheque</option>
+          <option>Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row full">
+      <div>
+        <label>Remarks (optional)</label>
+        <input type="text" id="payRemarks" placeholder="reference, etc.">
+      </div>
+    </div>
+    <button onclick="addPayment()" class="green" id="payBtn">+ Record Payment</button>
+  </div>
+
+  <div class="table-card">
+    <h3>Payment History</h3>
+    <div class="table-wrap">
+      <table id="paymentTable">
+        <thead>
+          <tr><th>Date</th><th>Party</th><th>Mode</th><th>Amount</th><th>Remarks</th><th></th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- EXPENSE PANEL -->
+<div class="panel" id="panel-expense">
+  <div class="form-card">
+    <h3>Add Expense</h3>
+    <div class="form-row">
+      <div>
+        <label>Date</label>
+        <input type="date" id="eDate">
+      </div>
+      <div>
+        <label>Expense Head</label>
+        <input type="text" id="eHead" list="headList" placeholder="e.g. Rent, Salary, Electricity" autocomplete="off">
+        <datalist id="headList"></datalist>
+      </div>
+    </div>
+    <div class="form-row">
+      <div>
+        <label>Total Amount (₹)</label>
+        <input type="number" id="eAmount" placeholder="0.00" step="0.01" oninput="syncPaidWithAmount()">
+      </div>
+      <div>
+        <label>Paid Now (₹)</label>
+        <input type="number" id="ePaid" placeholder="0.00" step="0.01">
+        <div style="font-size:11px;color:#666;margin-top:3px">Leave 0 if not paid yet · Set equal to amount if fully paid</div>
+      </div>
+    </div>
+    <div class="form-row">
+      <div>
+        <label>Mode (if paid)</label>
+        <select id="eMode">
+          <option>Cash</option>
+          <option>UPI</option>
+          <option>Bank Transfer</option>
+          <option>Cheque</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div>
+        <label>Remarks (optional)</label>
+        <input type="text" id="eRemarks" placeholder="any notes">
+      </div>
+    </div>
+    <button onclick="addExpense()" id="eBtn" style="background:#d29922">+ Add Expense</button>
+  </div>
+
+  <div class="table-card">
+    <h3>Expense History</h3>
+    <div class="table-wrap">
+      <table id="expenseTable">
+        <thead>
+          <tr><th>Date</th><th>Head</th><th>Amount</th><th>Paid</th><th>Pending</th><th>Mode</th><th></th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- LEDGER PANEL -->
+<div class="panel" id="panel-ledger">
+
+  <!-- Party Summary Table -->
+  <div class="table-card" style="margin-bottom: 16px;">
+    <h3>📋 Party-wise Summary</h3>
+    <div class="table-wrap">
+      <table id="partySummaryTable">
+        <thead>
+          <tr>
+            <th>Party / Vendor</th>
+            <th>Purchases</th>
+            <th>Paid</th>
+            <th>Balance</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Drill-in View -->
+  <div class="form-card" style="padding: 14px 18px;">
+    <label style="margin-bottom: 8px;">View detailed ledger for a party:</label>
+    <select id="partySelector" onchange="renderPartyDetail()" style="font-size: 14px;">
+      <option value="">— Select a party —</option>
+    </select>
+  </div>
+
+  <div class="table-card" id="partyDetailCard" style="display:none;">
+    <h3 id="partyDetailTitle">Party Ledger</h3>
+    <div id="partyDetailSummary" style="padding: 12px 18px; background: #f8f9fa; font-size: 13px; border-bottom: 1px solid #eee;"></div>
+    <div class="table-wrap">
+      <table id="partyDetailTable">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Details</th>
+            <th>Purchase</th>
+            <th>Payment</th>
+            <th>Balance</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Bottom Logout -->
+<div style="text-align:center; margin: 30px 0 20px;">
+  <button onclick="doLogout()" style="background:#fff;color:#d93025;border:1px solid #d93025;padding:10px 24px;font-size:14px;font-weight:600;">
+    🚪 Logout
+  </button>
+  <p style="font-size:11px;color:#999;margin-top:10px;">Prince Footwear · Powered by CA AB</p>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ====== CONFIG ======
+const API_URL = 'https://script.google.com/macros/s/AKfycbxOpoq5MSLt7jWBgW3F5cFROmXfH12JHkrc8y04a99j7ezVXsKmE9sV0rW_nqv30ekk/exec';
+// ====================
+
+let purchases = [];
+let payments = [];
+let expenses = [];
+let authToken = null;
+let deferredInstallPrompt = null;
+
+// ---------- PWA INSTALL ----------
+// Capture the install prompt event (Android/Chrome/Edge)
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  // Show banner only if user hasn't dismissed and not already installed
+  if (!localStorage.getItem('pf_install_dismissed') &&
+      !window.matchMedia('(display-mode: standalone)').matches) {
+    document.getElementById('installBanner').classList.add('show');
+  }
+});
+
+async function installPWA() {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  const result = await deferredInstallPrompt.userChoice;
+  if (result.outcome === 'accepted') {
+    document.getElementById('installBanner').classList.remove('show');
+    toast('✅ App installed!');
+  }
+  deferredInstallPrompt = null;
+}
+
+function hideInstallBanner() {
+  document.getElementById('installBanner').classList.remove('show');
+  localStorage.setItem('pf_install_dismissed', '1');
+}
+
+function hideIosHint() {
+  document.getElementById('iosHint').classList.remove('show');
+  localStorage.setItem('pf_ios_hint_dismissed', '1');
+}
+
+// Show iOS install hint (Safari doesn't fire beforeinstallprompt)
+function maybeShowIosHint() {
+  const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  const isStandalone = window.navigator.standalone === true ||
+                       window.matchMedia('(display-mode: standalone)').matches;
+  if (isIos && !isStandalone && !localStorage.getItem('pf_ios_hint_dismissed')) {
+    document.getElementById('iosHint').classList.add('show');
+  }
+}
+
+// ---------- LOGIN ----------
+async function doLogin() {
+  const id = document.getElementById('loginId').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  const errEl = document.getElementById('loginError');
+  const btn = document.querySelector('#loginScreen button');
+
+  if (!id || !pass) {
+    errEl.textContent = '⚠️ Enter both ID and password';
+    return;
+  }
+
+  if (API_URL.includes('PASTE_YOUR')) {
+    errEl.textContent = '⚠️ API_URL not configured';
+    return;
+  }
+
+  btn.disabled = true; btn.textContent = 'Signing in...';
+  errEl.textContent = '';
+
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'login', id: id, pass: pass })
+    });
+    const data = await res.json();
+
+    if (data.success && data.token) {
+      authToken = data.token;
+      sessionStorage.setItem('pf_token', data.token);
+      document.getElementById('loginScreen').classList.add('hidden');
+      document.getElementById('loginPass').value = '';
+      initApp();
+    } else {
+      errEl.textContent = '❌ ' + (data.error || 'Invalid credentials');
+      document.getElementById('loginPass').value = '';
+    }
+  } catch (e) {
+    errEl.textContent = '❌ Connection failed: ' + e.message;
+  }
+
+  btn.disabled = false; btn.textContent = 'Sign In';
+}
+
+function doLogout() {
+  sessionStorage.removeItem('pf_token');
+  authToken = null;
+  location.reload();
+}
+
+function checkAuth() {
+  const saved = sessionStorage.getItem('pf_token');
+  if (saved) {
+    authToken = saved;
+    document.getElementById('loginScreen').classList.add('hidden');
+    initApp();
+  } else {
+    document.getElementById('loginId').focus();
+  }
+}
+
+function handleAuthError() {
+  // Token expired or invalid — force re-login
+  sessionStorage.removeItem('pf_token');
+  authToken = null;
+  document.getElementById('loginScreen').classList.remove('hidden');
+  document.getElementById('loginError').textContent = '⏱ Session expired. Please log in again.';
+}
+
+function initApp() {
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('pDate').value = today;
+  document.getElementById('payDate').value = today;
+  document.getElementById('eDate').value = today;
+  loadData();
+  maybeShowIosHint();
+}
+
+// Check auth on page load
+document.addEventListener('DOMContentLoaded', () => {
+  // Allow Enter key in login fields
+  document.getElementById('loginId').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('loginPass').focus();
+  });
+  document.getElementById('loginPass').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doLogin();
+  });
+  checkAuth();
+});
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('panel-' + name).classList.add('active');
+}
+
+function toast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function fmt(n) {
+  return '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+async function loadData() {
+  if (API_URL.includes('PASTE_YOUR')) {
+    toast('⚠️ Configure API_URL in the code first', 'error');
+    return;
+  }
+  try {
+    const res = await fetch(API_URL + '?action=getAll&token=' + encodeURIComponent(authToken || ''));
+    const data = await res.json();
+    if (data.success) {
+      purchases = data.purchases;
+      payments = data.payments;
+      expenses = data.expenses || [];
+      render();
+    } else if (data.error === 'AUTH_REQUIRED') {
+      handleAuthError();
+    } else {
+      toast('Error: ' + data.error, 'error');
+    }
+  } catch (e) {
+    toast('Connection failed: ' + e.message, 'error');
+  }
+}
+
+async function addPurchase() {
+  const date = document.getElementById('pDate').value;
+  const party = document.getElementById('pParty').value.trim();
+  const invoice = document.getElementById('pInvoice').value.trim();
+  const amount = document.getElementById('pAmount').value;
+  const remarks = document.getElementById('pRemarks').value.trim();
+
+  if (!date || !party || !invoice || !amount) {
+    toast('Date, Party, Invoice & Amount required', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('pBtn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'addPurchase', token: authToken, date, party, invoice, amount, remarks })
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast('✅ Purchase added');
+      document.getElementById('pParty').value = '';
+      document.getElementById('pInvoice').value = '';
+      document.getElementById('pAmount').value = '';
+      document.getElementById('pRemarks').value = '';
+      loadData();
+    } else if (data.error === 'AUTH_REQUIRED') {
+      handleAuthError();
+    } else {
+      toast('Error: ' + data.error, 'error');
+    }
+  } catch (e) {
+    toast('Failed: ' + e.message, 'error');
+  }
+  btn.disabled = false; btn.textContent = '+ Add Purchase';
+}
+
+async function addPayment() {
+  const date = document.getElementById('payDate').value;
+  const party = document.getElementById('payParty').value.trim();
+  const amount = document.getElementById('payAmount').value;
+  const mode = document.getElementById('payMode').value;
+  const remarks = document.getElementById('payRemarks').value.trim();
+
+  if (!date || !party || !amount) {
+    toast('Date, Party & Amount required', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('payBtn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'addPayment', token: authToken, date, party, amount, mode, remarks })
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast('✅ Payment recorded');
+      document.getElementById('payParty').value = '';
+      document.getElementById('payAmount').value = '';
+      document.getElementById('payRemarks').value = '';
+      loadData();
+    } else if (data.error === 'AUTH_REQUIRED') {
+      handleAuthError();
+    } else {
+      toast('Error: ' + data.error, 'error');
+    }
+  } catch (e) {
+    toast('Failed: ' + e.message, 'error');
+  }
+  btn.disabled = false; btn.textContent = '+ Record Payment';
+}
+
+// ---------- EXPENSES ----------
+function syncPaidWithAmount() {
+  // Auto-fill paid = amount if user hasn't typed paid yet
+  // (only on first edit, helpful for fully-paid expenses)
+}
+
+async function addExpense() {
+  const date = document.getElementById('eDate').value;
+  const head = document.getElementById('eHead').value.trim();
+  const amount = document.getElementById('eAmount').value;
+  const paid = document.getElementById('ePaid').value || '0';
+  const mode = document.getElementById('eMode').value;
+  const remarks = document.getElementById('eRemarks').value.trim();
+
+  if (!date || !head || !amount) {
+    toast('Date, Head & Amount required', 'error');
+    return;
+  }
+  if (Number(paid) > Number(amount)) {
+    toast('Paid cannot exceed Amount', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('eBtn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'addExpense', token: authToken, date, head, amount, paid, mode, remarks })
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast('✅ Expense added');
+      document.getElementById('eHead').value = '';
+      document.getElementById('eAmount').value = '';
+      document.getElementById('ePaid').value = '';
+      document.getElementById('eRemarks').value = '';
+      loadData();
+    } else if (data.error === 'AUTH_REQUIRED') {
+      handleAuthError();
+    } else {
+      toast('Error: ' + data.error, 'error');
+    }
+  } catch (e) {
+    toast('Failed: ' + e.message, 'error');
+  }
+  btn.disabled = false; btn.textContent = '+ Add Expense';
+}
+
+async function deleteEntry(type, id) {
+  if (!confirm('Delete this entry?')) return;
+  try {
+    let action;
+    if (type === 'purchase') action = 'deletePurchase';
+    else if (type === 'payment') action = 'deletePayment';
+    else if (type === 'expense') action = 'deleteExpense';
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action, token: authToken, id })
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast('Deleted');
+      loadData();
+    } else if (data.error === 'AUTH_REQUIRED') {
+      handleAuthError();
+    } else {
+      toast('Error: ' + data.error, 'error');
+    }
+  } catch (e) {
+    toast('Failed: ' + e.message, 'error');
+  }
+}
+
+function render() {
+  // Totals
+  const totalP = purchases.reduce((s, x) => s + x.amount, 0);
+  const totalPay = payments.reduce((s, x) => s + x.amount, 0);
+  const totalExp = expenses.reduce((s, x) => s + x.amount, 0);
+  const totalExpPaid = expenses.reduce((s, x) => s + x.paid, 0);
+  document.getElementById('totalPurchases').textContent = fmt(totalP);
+  document.getElementById('totalPaid').textContent = fmt(totalPay);
+  document.getElementById('balance').textContent = fmt(totalP - totalPay);
+  document.getElementById('totalExpenses').textContent = fmt(totalExp);
+  document.getElementById('expensePending').textContent = fmt(totalExp - totalExpPaid);
+
+  // Build unique party list from all entries (purchases + payments)
+  const partySet = new Set();
+  purchases.forEach(p => p.party && partySet.add(p.party));
+  payments.forEach(p => p.party && partySet.add(p.party));
+  const partyOptions = Array.from(partySet).sort()
+    .map(name => `<option value="${name.replace(/"/g, '&quot;')}">`).join('');
+  document.getElementById('partyList').innerHTML = partyOptions;
+  document.getElementById('partyList2').innerHTML = partyOptions;
+
+  // Build unique expense head list
+  const headSet = new Set();
+  expenses.forEach(e => e.head && headSet.add(e.head));
+  // Common defaults
+  ['Rent', 'Salary', 'Electricity', 'Water', 'Internet', 'Telephone', 'Stationery', 'Transport', 'Misc'].forEach(h => headSet.add(h));
+  const headOptions = Array.from(headSet).sort()
+    .map(name => `<option value="${name.replace(/"/g, '&quot;')}">`).join('');
+  document.getElementById('headList').innerHTML = headOptions;
+
+  // Purchase table
+  const pBody = document.querySelector('#purchaseTable tbody');
+  if (purchases.length === 0) {
+    pBody.innerHTML = '<tr><td colspan="6" class="empty">No purchases yet</td></tr>';
+  } else {
+    pBody.innerHTML = purchases.slice().reverse().map(p => `
+      <tr>
+        <td>${p.date}</td>
+        <td><strong>${p.party}</strong></td>
+        <td>${p.invoice}</td>
+        <td class="amount purchase">${fmt(p.amount)}</td>
+        <td>${p.remarks}</td>
+        <td><button class="danger" onclick="deleteEntry('purchase','${p.id}')">✕</button></td>
+      </tr>`).join('');
+  }
+
+  // Payment table
+  const payBody = document.querySelector('#paymentTable tbody');
+  if (payments.length === 0) {
+    payBody.innerHTML = '<tr><td colspan="6" class="empty">No payments yet</td></tr>';
+  } else {
+    payBody.innerHTML = payments.slice().reverse().map(p => `
+      <tr>
+        <td>${p.date}</td>
+        <td><strong>${p.party}</strong></td>
+        <td>${p.mode}</td>
+        <td class="amount payment">${fmt(p.amount)}</td>
+        <td>${p.remarks}</td>
+        <td><button class="danger" onclick="deleteEntry('payment','${p.id}')">✕</button></td>
+      </tr>`).join('');
+  }
+
+  // Expense table
+  const eBody = document.querySelector('#expenseTable tbody');
+  if (expenses.length === 0) {
+    eBody.innerHTML = '<tr><td colspan="7" class="empty">No expenses yet</td></tr>';
+  } else {
+    eBody.innerHTML = expenses.slice().reverse().map(e => {
+      const pending = e.amount - e.paid;
+      const pendingColor = pending > 0 ? '#d93025' : '#0f9d58';
+      return `
+        <tr>
+          <td>${e.date}</td>
+          <td><strong>${e.head}</strong>${e.remarks ? `<div style="font-size:11px;color:#666">${e.remarks}</div>` : ''}</td>
+          <td class="amount" style="color:#d29922">${fmt(e.amount)}</td>
+          <td class="amount payment">${fmt(e.paid)}</td>
+          <td class="amount" style="color:${pendingColor}">${fmt(pending)}</td>
+          <td>${e.paid > 0 ? e.mode : '—'}</td>
+          <td><button class="danger" onclick="deleteEntry('expense','${e.id}')">✕</button></td>
+        </tr>`;
+    }).join('');
+  }
+
+  // ===== Party-wise Summary =====
+  // Build a map of party -> { purchases, paid, entries }
+  const partyMap = {};
+
+  purchases.forEach(p => {
+    const key = p.party || '(No Party)';
+    if (!partyMap[key]) partyMap[key] = { purchases: 0, paid: 0, entries: [] };
+    partyMap[key].purchases += p.amount;
+    partyMap[key].entries.push({ ...p, type: 'Purchase', sortKey: p.date + '_P' });
+  });
+
+  payments.forEach(p => {
+    const key = p.party || '(No Party)';
+    if (!partyMap[key]) partyMap[key] = { purchases: 0, paid: 0, entries: [] };
+    partyMap[key].paid += p.amount;
+    partyMap[key].entries.push({ ...p, type: 'Payment', sortKey: p.date + '_Y' });
+  });
+
+  // Sorted list of party names — those with outstanding balance first
+  const partyNames = Object.keys(partyMap).sort((a, b) => {
+    const balA = partyMap[a].purchases - partyMap[a].paid;
+    const balB = partyMap[b].purchases - partyMap[b].paid;
+    if (balA !== balB) return balB - balA; // descending balance
+    return a.localeCompare(b);
+  });
+
+  // Render Party Summary Table
+  const summaryBody = document.querySelector('#partySummaryTable tbody');
+  if (partyNames.length === 0) {
+    summaryBody.innerHTML = '<tr><td colspan="5" class="empty">No entries yet</td></tr>';
+  } else {
+    summaryBody.innerHTML = partyNames.map(name => {
+      const d = partyMap[name];
+      const bal = d.purchases - d.paid;
+      const balColor = bal > 0 ? '#d93025' : (bal < 0 ? '#0f9d58' : '#666');
+      const balLabel = bal > 0 ? '(due)' : (bal < 0 ? '(advance)' : '(settled)');
+      return `
+        <tr style="cursor:pointer" onclick="drillPartyDetail('${name.replace(/'/g, "\\'")}')">
+          <td><strong>${name}</strong></td>
+          <td class="amount purchase">${fmt(d.purchases)}</td>
+          <td class="amount payment">${fmt(d.paid)}</td>
+          <td class="amount" style="color:${balColor}">
+            ${fmt(Math.abs(bal))}
+            <div style="font-size:10px;font-weight:400;color:${balColor};opacity:0.8">${balLabel}</div>
+          </td>
+          <td><button style="padding:5px 10px;font-size:12px" onclick="event.stopPropagation();drillPartyDetail('${name.replace(/'/g, "\\'")}')">View →</button></td>
+        </tr>`;
+    }).join('');
+  }
+
+  // Populate party selector dropdown
+  const sel = document.getElementById('partySelector');
+  const currentSel = sel.value;
+  sel.innerHTML = '<option value="">— Select a party —</option>' +
+    partyNames.map(n => `<option value="${n.replace(/"/g, '&quot;')}">${n}</option>`).join('');
+  // Preserve selection if party still exists
+  if (currentSel && partyNames.includes(currentSel)) {
+    sel.value = currentSel;
+    renderPartyDetail();
+  }
+}
+
+// Drill into a specific party's ledger
+function drillPartyDetail(partyName) {
+  // Switch to ledger tab if not already
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab')[2].classList.add('active');
+  document.getElementById('panel-ledger').classList.add('active');
+
+  document.getElementById('partySelector').value = partyName;
+  renderPartyDetail();
+
+  // Scroll to detail card
+  setTimeout(() => {
+    document.getElementById('partyDetailCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 100);
+}
+
+function renderPartyDetail() {
+  const partyName = document.getElementById('partySelector').value;
+  const card = document.getElementById('partyDetailCard');
+
+  if (!partyName) {
+    card.style.display = 'none';
+    return;
+  }
+
+  // Get all entries for this party
+  const partyPurchases = purchases.filter(p => (p.party || '(No Party)') === partyName);
+  const partyPayments = payments.filter(p => (p.party || '(No Party)') === partyName);
+
+  const totalP = partyPurchases.reduce((s, x) => s + x.amount, 0);
+  const totalPaid = partyPayments.reduce((s, x) => s + x.amount, 0);
+  const balance = totalP - totalPaid;
+
+  document.getElementById('partyDetailTitle').textContent = '👤 ' + partyName;
+
+  const balLabel = balance > 0 ? `<strong style="color:#d93025">${fmt(balance)} due</strong>`
+                    : balance < 0 ? `<strong style="color:#0f9d58">${fmt(Math.abs(balance))} advance</strong>`
+                    : `<strong style="color:#666">Settled</strong>`;
+
+  document.getElementById('partyDetailSummary').innerHTML = `
+    <div style="display:flex;flex-wrap:wrap;gap:18px">
+      <div>Total Purchases: <strong style="color:#7b1fa2">${fmt(totalP)}</strong></div>
+      <div>Total Paid: <strong style="color:#0f9d58">${fmt(totalPaid)}</strong></div>
+      <div>Balance: ${balLabel}</div>
+    </div>`;
+
+  // Combined chronological entries with running balance
+  const all = [
+    ...partyPurchases.map(p => ({ ...p, type: 'Purchase', sortKey: p.date + '_P' })),
+    ...partyPayments.map(p => ({ ...p, type: 'Payment', sortKey: p.date + '_Y' }))
+  ].sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+
+  let bal = 0;
+  const body = document.querySelector('#partyDetailTable tbody');
+  body.innerHTML = all.map(e => {
+    if (e.type === 'Purchase') bal += e.amount;
+    else bal -= e.amount;
+    const details = e.type === 'Purchase'
+      ? `Inv ${e.invoice}` + (e.remarks ? ` — ${e.remarks}` : '')
+      : `${e.mode}` + (e.remarks ? ` — ${e.remarks}` : '');
+    return `
+      <tr>
+        <td>${e.date}</td>
+        <td>${e.type}</td>
+        <td>${details}</td>
+        <td class="amount purchase">${e.type === 'Purchase' ? fmt(e.amount) : ''}</td>
+        <td class="amount payment">${e.type === 'Payment' ? fmt(e.amount) : ''}</td>
+        <td class="amount" style="color:${bal > 0 ? '#d93025' : (bal < 0 ? '#0f9d58' : '#666')}">${fmt(bal)}</td>
+      </tr>`;
+  }).join('');
+
+  card.style.display = 'block';
+}
+</script>
+</body>
+</html>
