@@ -61,11 +61,11 @@ if (location.protocol === 'https:') {
 
   .summary {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(6, 1fr);
     gap: 12px;
     margin-bottom: 20px;
   }
-  @media (max-width: 1024px) {
+  @media (max-width: 1100px) {
     .summary { grid-template-columns: repeat(3, 1fr); }
   }
   @media (max-width: 700px) {
@@ -82,12 +82,14 @@ if (location.protocol === 'https:') {
   .card.red { border-left-color: #d93025; }
   .card.yellow { border-left-color: #d29922; }
   .card.orange { border-left-color: #f57c00; }
+  .card.blue { border-left-color: #0288d1; }
   .card .label { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
   .card .value { font-size: 22px; font-weight: 700; margin-top: 4px; color: #7b1fa2; }
   .card.green .value { color: #0f9d58; }
   .card.red .value { color: #d93025; }
   .card.yellow .value { color: #d29922; }
   .card.orange .value { color: #f57c00; }
+  .card.blue .value { color: #0288d1; }
 
   .tabs {
     display: flex;
@@ -420,12 +422,17 @@ if (location.protocol === 'https:') {
     <div class="label">Expense Pending</div>
     <div class="value" id="expensePending">₹0</div>
   </div>
+  <div class="card blue">
+    <div class="label">Advances Receivable</div>
+    <div class="value" id="advancesReceivable">₹0</div>
+  </div>
 </div>
 
 <div class="tabs">
   <div class="tab active" onclick="switchTab('purchase')">📦 Purchases</div>
   <div class="tab" onclick="switchTab('payment')">💰 Payments</div>
   <div class="tab" onclick="switchTab('expense')">🧾 Expenses</div>
+  <div class="tab" onclick="switchTab('advance')">🤝 Advances</div>
   <div class="tab" onclick="switchTab('ledger')">📊 Party Ledger</div>
 </div>
 
@@ -435,26 +442,30 @@ if (location.protocol === 'https:') {
     <h3>Add New Purchase</h3>
     <div class="form-row">
       <div>
-        <label>Date</label>
+        <label>Invoice Date</label>
         <input type="date" id="pDate">
       </div>
+      <div>
+        <label>Goods Receipt Date</label>
+        <input type="date" id="pReceiptDate">
+      </div>
+    </div>
+    <div class="form-row">
       <div>
         <label>Party / Vendor Name</label>
         <input type="text" id="pParty" list="partyList" placeholder="Type or pick" autocomplete="off">
         <datalist id="partyList"></datalist>
       </div>
-    </div>
-    <div class="form-row">
       <div>
         <label>Invoice Number</label>
         <input type="text" id="pInvoice" placeholder="e.g. INV-001">
       </div>
+    </div>
+    <div class="form-row">
       <div>
         <label>Amount (₹)</label>
         <input type="number" id="pAmount" placeholder="0.00" step="0.01">
       </div>
-    </div>
-    <div class="form-row full">
       <div>
         <label>Remarks (optional)</label>
         <input type="text" id="pRemarks" placeholder="any notes">
@@ -468,7 +479,7 @@ if (location.protocol === 'https:') {
     <div class="table-wrap">
       <table id="purchaseTable">
         <thead>
-          <tr><th>Date</th><th>Party</th><th>Invoice</th><th>Amount</th><th>Remarks</th><th></th></tr>
+          <tr><th>Invoice Date</th><th>Receipt Date</th><th>Party</th><th>Invoice</th><th>Amount</th><th>Remarks</th><th></th></tr>
         </thead>
         <tbody></tbody>
       </table>
@@ -503,6 +514,7 @@ if (location.protocol === 'https:') {
           <option>UPI</option>
           <option>Bank Transfer</option>
           <option>Cheque</option>
+          <option>Credit Note</option>
           <option>Other</option>
         </select>
       </div>
@@ -540,8 +552,12 @@ if (location.protocol === 'https:') {
       </div>
       <div>
         <label>Expense Head</label>
-        <input type="text" id="eHead" list="headList" placeholder="e.g. Rent, Salary, Electricity" autocomplete="off">
+        <input type="text" id="eHead" list="headList" placeholder="Type or pick" autocomplete="off">
         <datalist id="headList"></datalist>
+        <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
+          <button type="button" onclick="setExpenseHead('Shop Rent')" style="background:#e8eaf6;color:#3f51b5;padding:5px 10px;font-size:12px;width:auto;border:1px solid #c5cae9">🏪 Shop Rent</button>
+          <button type="button" onclick="setExpenseHead('Godown Rent')" style="background:#fff3e0;color:#e65100;padding:5px 10px;font-size:12px;width:auto;border:1px solid #ffcc80">📦 Godown Rent</button>
+        </div>
       </div>
     </div>
     <div class="form-row">
@@ -580,6 +596,55 @@ if (location.protocol === 'https:') {
       <table id="expenseTable">
         <thead>
           <tr><th>Date</th><th>Head</th><th>Amount</th><th>Paid</th><th>Pending</th><th>Mode</th><th></th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ADVANCE PANEL -->
+<div class="panel" id="panel-advance">
+  <div class="form-card">
+    <h3>🤝 New Advance / Receivable Given</h3>
+    <p style="font-size:12px;color:#666;margin-bottom:14px;margin-top:-6px">
+      Money given to someone (not for purchase or expense) that should come back — informal advance, deposit, etc.
+    </p>
+    <div class="form-row">
+      <div>
+        <label>Date</label>
+        <input type="date" id="aDate">
+      </div>
+      <div>
+        <label>Party Name</label>
+        <input type="text" id="aParty" placeholder="Person/Party name">
+      </div>
+    </div>
+    <div class="form-row">
+      <div>
+        <label>Amount Given (₹)</label>
+        <input type="number" id="aGiven" placeholder="0.00" step="0.01">
+      </div>
+      <div>
+        <label>Purpose</label>
+        <input type="text" id="aPurpose" placeholder="e.g. deposit, advance, etc.">
+      </div>
+    </div>
+    <div class="form-row full">
+      <div>
+        <label>Remarks (optional)</label>
+        <input type="text" id="aRemarks" placeholder="any notes">
+      </div>
+    </div>
+    <button onclick="addAdvance()" id="aBtn" style="background:#0288d1">+ Add Advance</button>
+  </div>
+
+  <div class="table-card">
+    <h3>Outstanding Advances</h3>
+    <div class="table-wrap">
+      <table id="advanceTable">
+        <thead>
+          <tr><th>Date</th><th>Party</th><th>Purpose</th><th>Given</th><th>Received</th><th>Pending</th><th>Action</th><th></th></tr>
         </thead>
         <tbody></tbody>
       </table>
@@ -656,6 +721,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbxOpoq5MSLt7jWBgW3F5cFR
 let purchases = [];
 let payments = [];
 let expenses = [];
+let advances = [];
 let authToken = null;
 let deferredInstallPrompt = null;
 
@@ -774,8 +840,10 @@ function handleAuthError() {
 function initApp() {
   const today = new Date().toISOString().split('T')[0];
   document.getElementById('pDate').value = today;
+  document.getElementById('pReceiptDate').value = today;
   document.getElementById('payDate').value = today;
   document.getElementById('eDate').value = today;
+  document.getElementById('aDate').value = today;
   loadData();
   maybeShowIosHint();
 }
@@ -822,6 +890,7 @@ async function loadData() {
       purchases = data.purchases;
       payments = data.payments;
       expenses = data.expenses || [];
+      advances = data.advances || [];
       render();
     } else if (data.error === 'AUTH_REQUIRED') {
       handleAuthError();
@@ -835,6 +904,7 @@ async function loadData() {
 
 async function addPurchase() {
   const date = document.getElementById('pDate').value;
+  const receiptDate = document.getElementById('pReceiptDate').value;
   const party = document.getElementById('pParty').value.trim();
   const invoice = document.getElementById('pInvoice').value.trim();
   const amount = document.getElementById('pAmount').value;
@@ -851,7 +921,7 @@ async function addPurchase() {
   try {
     const res = await fetch(API_URL, {
       method: 'POST',
-      body: JSON.stringify({ action: 'addPurchase', token: authToken, date, party, invoice, amount, remarks })
+      body: JSON.stringify({ action: 'addPurchase', token: authToken, date, receiptDate, party, invoice, amount, remarks })
     });
     const data = await res.json();
     if (data.success) {
@@ -911,6 +981,10 @@ async function addPayment() {
 }
 
 // ---------- EXPENSES ----------
+function setExpenseHead(name) {
+  document.getElementById('eHead').value = name;
+}
+
 function syncPaidWithAmount() {
   // Auto-fill paid = amount if user hasn't typed paid yet
   // (only on first edit, helpful for fully-paid expenses)
@@ -960,6 +1034,77 @@ async function addExpense() {
   btn.disabled = false; btn.textContent = '+ Add Expense';
 }
 
+// ---------- ADVANCES / RECEIVABLES ----------
+async function addAdvance() {
+  const date = document.getElementById('aDate').value;
+  const party = document.getElementById('aParty').value.trim();
+  const given = document.getElementById('aGiven').value;
+  const purpose = document.getElementById('aPurpose').value.trim();
+  const remarks = document.getElementById('aRemarks').value.trim();
+
+  if (!date || !party || !given) {
+    toast('Date, Party & Amount required', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('aBtn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'addAdvance', token: authToken, date, party, given, purpose, remarks })
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast('✅ Advance recorded');
+      document.getElementById('aParty').value = '';
+      document.getElementById('aGiven').value = '';
+      document.getElementById('aPurpose').value = '';
+      document.getElementById('aRemarks').value = '';
+      loadData();
+    } else if (data.error === 'AUTH_REQUIRED') {
+      handleAuthError();
+    } else {
+      toast('Error: ' + data.error, 'error');
+    }
+  } catch (e) {
+    toast('Failed: ' + e.message, 'error');
+  }
+  btn.disabled = false; btn.textContent = '+ Add Advance';
+}
+
+async function recordAdvanceReceipt(id, partyName, pending) {
+  const amount = prompt(`Record amount received from ${partyName}\n(Pending: ₹${pending.toLocaleString('en-IN')}):`, '');
+  if (amount === null || amount === '') return;
+  const amt = Number(amount);
+  if (isNaN(amt) || amt <= 0) {
+    toast('Invalid amount', 'error');
+    return;
+  }
+  if (amt > pending) {
+    if (!confirm(`Amount (₹${amt}) is more than pending (₹${pending}). Continue?`)) return;
+  }
+
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'updateAdvance', token: authToken, id, amount: amt })
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast('✅ Receipt recorded');
+      loadData();
+    } else if (data.error === 'AUTH_REQUIRED') {
+      handleAuthError();
+    } else {
+      toast('Error: ' + data.error, 'error');
+    }
+  } catch (e) {
+    toast('Failed: ' + e.message, 'error');
+  }
+}
+
 async function deleteEntry(type, id) {
   if (!confirm('Delete this entry?')) return;
   try {
@@ -967,6 +1112,7 @@ async function deleteEntry(type, id) {
     if (type === 'purchase') action = 'deletePurchase';
     else if (type === 'payment') action = 'deletePayment';
     else if (type === 'expense') action = 'deleteExpense';
+    else if (type === 'advance') action = 'deleteAdvance';
     const res = await fetch(API_URL, {
       method: 'POST',
       body: JSON.stringify({ action, token: authToken, id })
@@ -991,11 +1137,13 @@ function render() {
   const totalPay = payments.reduce((s, x) => s + x.amount, 0);
   const totalExp = expenses.reduce((s, x) => s + x.amount, 0);
   const totalExpPaid = expenses.reduce((s, x) => s + x.paid, 0);
+  const totalAdvancePending = advances.reduce((s, x) => s + (x.given - x.received), 0);
   document.getElementById('totalPurchases').textContent = fmt(totalP);
   document.getElementById('totalPaid').textContent = fmt(totalPay);
   document.getElementById('balance').textContent = fmt(totalP - totalPay);
   document.getElementById('totalExpenses').textContent = fmt(totalExp);
   document.getElementById('expensePending').textContent = fmt(totalExp - totalExpPaid);
+  document.getElementById('advancesReceivable').textContent = fmt(totalAdvancePending);
 
   // Build unique party list from all entries (purchases + payments)
   const partySet = new Set();
@@ -1009,8 +1157,8 @@ function render() {
   // Build unique expense head list
   const headSet = new Set();
   expenses.forEach(e => e.head && headSet.add(e.head));
-  // Common defaults
-  ['Rent', 'Salary', 'Electricity', 'Water', 'Internet', 'Telephone', 'Stationery', 'Transport', 'Misc'].forEach(h => headSet.add(h));
+  // Common defaults — only Shop Rent and Godown Rent built-in (rest user adds manually)
+  ['Shop Rent', 'Godown Rent'].forEach(h => headSet.add(h));
   const headOptions = Array.from(headSet).sort()
     .map(name => `<option value="${name.replace(/"/g, '&quot;')}">`).join('');
   document.getElementById('headList').innerHTML = headOptions;
@@ -1018,17 +1166,21 @@ function render() {
   // Purchase table
   const pBody = document.querySelector('#purchaseTable tbody');
   if (purchases.length === 0) {
-    pBody.innerHTML = '<tr><td colspan="6" class="empty">No purchases yet</td></tr>';
+    pBody.innerHTML = '<tr><td colspan="7" class="empty">No purchases yet</td></tr>';
   } else {
-    pBody.innerHTML = purchases.slice().reverse().map(p => `
+    pBody.innerHTML = purchases.slice().reverse().map(p => {
+      const dateMatch = p.date === p.receiptDate;
+      return `
       <tr>
         <td>${p.date}</td>
+        <td>${dateMatch ? '<span style="color:#999">same</span>' : p.receiptDate}</td>
         <td><strong>${p.party}</strong></td>
         <td>${p.invoice}</td>
         <td class="amount purchase">${fmt(p.amount)}</td>
         <td>${p.remarks}</td>
         <td><button class="danger" onclick="deleteEntry('purchase','${p.id}')">✕</button></td>
-      </tr>`).join('');
+      </tr>`;
+    }).join('');
   }
 
   // Payment table
@@ -1064,6 +1216,29 @@ function render() {
           <td class="amount" style="color:${pendingColor}">${fmt(pending)}</td>
           <td>${e.paid > 0 ? e.mode : '—'}</td>
           <td><button class="danger" onclick="deleteEntry('expense','${e.id}')">✕</button></td>
+        </tr>`;
+    }).join('');
+  }
+
+  // Advance table
+  const aBody = document.querySelector('#advanceTable tbody');
+  if (advances.length === 0) {
+    aBody.innerHTML = '<tr><td colspan="8" class="empty">No advances given yet</td></tr>';
+  } else {
+    aBody.innerHTML = advances.slice().reverse().map(a => {
+      const pending = a.given - a.received;
+      const pendingColor = pending > 0 ? '#d93025' : '#0f9d58';
+      const partyEsc = a.party.replace(/'/g, "\\'");
+      return `
+        <tr>
+          <td>${a.date}</td>
+          <td><strong>${a.party}</strong></td>
+          <td>${a.purpose}${a.remarks ? `<div style="font-size:11px;color:#666">${a.remarks}</div>` : ''}</td>
+          <td class="amount" style="color:#0288d1">${fmt(a.given)}</td>
+          <td class="amount payment">${fmt(a.received)}</td>
+          <td class="amount" style="color:${pendingColor}">${fmt(pending)}</td>
+          <td>${pending > 0 ? `<button onclick="recordAdvanceReceipt('${a.id}','${partyEsc}',${pending})" style="background:#0f9d58;padding:5px 9px;font-size:12px;width:auto">+ Receipt</button>` : '<span style="color:#0f9d58;font-size:12px">✓ Settled</span>'}</td>
+          <td><button class="danger" onclick="deleteEntry('advance','${a.id}')">✕</button></td>
         </tr>`;
     }).join('');
   }
