@@ -25,11 +25,24 @@ header .sub{opacity:.85;font-size:13px;margin-top:2px}
 .tabs button{flex:1 1 auto;min-width:92px;border:1px solid #cbd5e1;background:#fff;color:#334155;
   border-radius:999px;padding:10px 12px;font-size:14px;font-weight:600}
 .tabs button.on{background:#1F3864;border-color:#1F3864;color:#fff}
+/* sales or staff - the same four stretches of time either way */
+.which{margin-bottom:8px}
+.which button{font-size:14px;padding:8px 10px}
+/* one chip a tap, so a day reads left to right */
+.pin,.pout{display:inline-block;border-radius:999px;padding:1px 8px;margin:1px 2px 1px 0;
+  font-size:11.5px;font-weight:700}
+.pin{background:#ecfdf5;color:#15803d}
+.pout{background:#fef2f2;color:#b91c1c}
+.dayrow{padding:7px 0;border-top:1px solid #eef2f7}
+.dayrow:first-child{border-top:0}
+.dayrow .d{font-size:12px;color:#64748b}
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}
 .card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px}
 .card small{display:block;color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:.4px}
 .card b{font-size:24px;letter-spacing:-.5px}
 .sec{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;margin-bottom:12px}
+.sech{font-weight:800;font-size:15.5px;margin-bottom:6px}
+.sech .muted{font-weight:600;font-size:12.5px}
 .sec h3{margin:0 0 8px;font-size:15px}
 table{width:100%;border-collapse:collapse;font-size:14px}
 td,th{padding:6px 4px;border-bottom:1px solid #eef2f7;text-align:left}
@@ -75,6 +88,10 @@ th{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#64748b}
 </header>
 
 <div class="wrap">
+  <div class="tabs which">
+    <button id="w0" class="on" onclick="which(0)">Sales</button>
+    <button id="w1" onclick="which(1)">Staff</button>
+  </div>
   <div class="tabs">
     <button id="t0" class="on" onclick="pick(0)">Today</button>
     <button id="t1" onclick="pick(1)">Yesterday</button>
@@ -108,6 +125,9 @@ th{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#64748b}
 ------------------------------------------------------------------------- */
 var EXEC = "https://script.google.com/macros/s/AKfycbyHNpprj2ct0Qaqc5hAuwclvWQevzLYS85rfVEllrT8zEufj3vZGmVCKD2DEAmNUk4N/exec";
 var PIN  = "1468";
+/* The attendance is kept in its own sheet, with its own script, so it has its
+   own address here. The PIN is the same one. */
+var ATT  = "https://script.google.com/macros/s/AKfycbwEt_03-oIDaeWRVgSd7UVfsBlF83N3yNm2H0FH_SEUSyZe6sPmq2bYwnOlgQRlZEBo/exec";
 var K_OK = "pf_rep_ok", K_LAST = "pf_rep_last";
 
 var $ = function(i){ return document.getElementById(i); };
@@ -156,33 +176,109 @@ function range(i){
   if (i===3){ var y = t.getMonth()>=3 ? t.getFullYear() : t.getFullYear()-1; f = new Date(y,3,1); }
   return [iso(f), iso(t)];
 }
+var WHICH = 0;   /* 0 sales, 1 staff */
+var NAMES = ["Sikandar","Samir","Sahil","Nilesh","Abbas","Sachin"];
+
+function which(w){
+  WHICH = w;
+  $("w0").className = (w===0 ? "on" : "");
+  $("w1").className = (w===1 ? "on" : "");
+  pick(TAB);
+}
+function cacheKey(w,i){ return (w?"s":"r") + i; }
+
 function pick(i){
   TAB = i;
   for (var k=0;k<4;k++) $("t"+k).className = (k===i ? "on" : "");
-  var r = range(i);
-  var cached = get(K_LAST, null);
-  if (cached && cached.d && cached.d.from === undefined) { try{ localStorage.removeItem(K_LAST); }catch(e){} cached = null; }
-  if (cached && cached.tab === i && cached.d) { draw(cached.d); $("when").textContent = "last read " + cached.at; }
-  else { $("out").className = "load"; $("out").textContent = "Loading\u2026"; }
-  fetch(EXEC, { method:"POST", headers:{ "Content-Type":"text/plain;charset=utf-8" },
-                body: JSON.stringify({ report:1, pin:PIN, from:r[0], to:r[1] }) })
+  var r = range(i), w = WHICH, key = cacheKey(w,i);
+  var all = get(K_LAST, {});
+  if (all && all.tab !== undefined) all = {};          /* the older single-slot cache */
+  var cached = all[key];
+  if (cached && cached.d && cached.d.from !== undefined) {
+    paint(w, cached.d); $("when").textContent = "last read " + cached.at;
+  } else { $("sub").innerHTML="&nbsp;"; $("out").className = "load"; $("out").textContent = "Loading…"; }
+
+  var body = w
+    ? { attReport:1, pin:PIN, from:r[0], to:r[1], names:NAMES }
+    : { report:1,    pin:PIN, from:r[0], to:r[1] };
+  var host = w ? ATT : EXEC;
+
+  fetch(host, { method:"POST", headers:{ "Content-Type":"text/plain;charset=utf-8" },
+                body: JSON.stringify(body) })
     .then(function(x){ if (!x.ok) throw new Error("net"); return x.json(); })
     .then(function(d){
+      if (WHICH !== w || TAB !== i) return;            /* they moved on while it was in the air */
       if (d && d.error === "wrong pin") return oops(BAD_PIN);
-      if (!d || !d.ok || d.from === undefined || d.total === undefined) return oops(OLD_GS);
-      draw(d);
+      var good = d && d.ok && d.from !== undefined
+               && (w ? d.staff !== undefined : d.total !== undefined);
+      if (!good) return oops(OLD_GS);
+      paint(w, d);
       var at = new Date().toLocaleTimeString("en-IN",{hour:"numeric",minute:"2-digit"});
       $("when").textContent = "read at " + at;
-      put(K_LAST, { tab:i, at:at, d:d });
+      all[key] = { at:at, d:d };
+      put(K_LAST, all);
     })
     .catch(function(){
-      if (cached && cached.tab === i && cached.d && cached.d.from !== undefined) {
-        draw(cached.d);
-        $("when").textContent = "no internet \u2014 last read " + cached.at;
+      if (WHICH !== w || TAB !== i) return;
+      if (cached && cached.d && cached.d.from !== undefined) {
+        paint(w, cached.d);
+        $("when").textContent = "no internet — last read " + cached.at;
       }
       else oops("No internet, and nothing saved on this phone yet.");
     });
 }
+function paint(w, d){ return w ? drawStaff(d) : draw(d); }
+
+/* ---------- the staff, day by day ---------- */
+function clockOf(t){
+  var m = /^(\d{1,2}):(\d{2})/.exec(String(t||"")); if (!m) return String(t||"");
+  var h = Number(m[1]), ap = h<12 ? "am" : "pm"; h = h%12; if (!h) h = 12;
+  return h + ":" + m[2] + " " + ap;
+}
+function hrs(mins){
+  if (!mins) return "—";
+  var h = Math.floor(mins/60), m = mins%60;
+  return h + "h" + (m ? " " + (m<10?"0":"") + m + "m" : "");
+}
+function dmyShort(d){
+  var mo = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  var p = String(d).split("-");
+  return Number(p[2]) + " " + mo[Number(p[1])-1];
+}
+function drawStaff(d){
+  $("sub").textContent = (d.from===d.to ? d.from : d.from + " to " + d.to);
+  var staff = (d.staff||[]).filter(function(p){ return p.present || p.days.length; });
+  if (!staff.length) {
+    $("out").className = "load";
+    $("out").innerHTML = "Nothing marked in this stretch.";
+    return;
+  }
+  staff.sort(function(a,b){ return b.mins - a.mins; });
+  var h = '<div class="cards">';
+  h += card("Days worked", staff.reduce(function(a,p){ return a + p.present; }, 0));
+  h += card("Hours", hrs(staff.reduce(function(a,p){ return a + p.mins; }, 0)));
+  h += "</div>";
+
+  staff.forEach(function(p){
+    h += '<div class="sec"><div class="sech">' + esc(p.name)
+       + ' <span class="muted">' + p.present + (p.present===1?" day":" days")
+       + ' · ' + hrs(p.mins) + '</span></div>';
+    if (!p.days.length) h += '<div class="dayrow muted">nothing marked</div>';
+    p.days.slice().reverse().forEach(function(x){
+      h += '<div class="dayrow"><div class="d">' + dmyShort(x.date)
+         + ' · ' + hrs(x.mins) + (x.open ? ' · <b>never marked out</b>' : '') + '</div><div>'
+         + x.times.map(function(t,ix){
+             return '<span class="' + (ix%2 ? "pout" : "pin") + '">'
+                  + (ix%2 ? "out " : "in ") + clockOf(t) + '</span>';
+           }).join("")
+         + '</div></div>';
+    });
+    h += '</div>';
+  });
+  $("out").className = "";
+  $("out").innerHTML = h;
+}
+
 var BAD_PIN = "The PIN in this app does not match the one in the sheet.";
 var OLD_GS  = "The sheet answered, but not with a report. The Apps Script file "
             + "is the older one \u2014 put the new OnlineReports.gs in and deploy again.";
