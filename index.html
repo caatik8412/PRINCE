@@ -214,7 +214,9 @@ function pick(i){
       if (!good) return oops(OLD_GS);
       paint(w, d);
       var at = new Date().toLocaleTimeString("en-IN",{hour:"numeric",minute:"2-digit"});
-      $("when").textContent = "read at " + at;
+      /* the sheet says which script it is running, so an old one is obvious */
+      $("when").textContent = "read at " + at + (d.gsVer ? "  \u00b7  sheet " + d.gsVer
+                                                         : "  \u00b7  older sheet");
       all[key] = { at:at, d:d };
       put(K_LAST, all);
     })
