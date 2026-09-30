@@ -161,31 +161,32 @@ function pick(i){
   for (var k=0;k<4;k++) $("t"+k).className = (k===i ? "on" : "");
   var r = range(i);
   var cached = get(K_LAST, null);
+  if (cached && cached.d && cached.d.from === undefined) { try{ localStorage.removeItem(K_LAST); }catch(e){} cached = null; }
   if (cached && cached.tab === i && cached.d) { draw(cached.d); $("when").textContent = "last read " + cached.at; }
   else { $("out").className = "load"; $("out").textContent = "Loading\u2026"; }
   fetch(EXEC, { method:"POST", headers:{ "Content-Type":"text/plain;charset=utf-8" },
                 body: JSON.stringify({ report:1, pin:PIN, from:r[0], to:r[1] }) })
-    .then(function(x){ if (!x.ok) throw new Error("http "+x.status); return x.json(); })
+    .then(function(x){ if (!x.ok) throw new Error("net"); return x.json(); })
     .then(function(d){
-      if (!d || !d.ok) {
-        if (d && d.error === "wrong pin")
-          return oops("The PIN in this app does not match the one in the sheet.");
-        throw new Error("refused");
-      }
+      if (d && d.error === "wrong pin") return oops(BAD_PIN);
+      if (!d || !d.ok || d.from === undefined || d.total === undefined) return oops(OLD_GS);
       draw(d);
       var at = new Date().toLocaleTimeString("en-IN",{hour:"numeric",minute:"2-digit"});
       $("when").textContent = "read at " + at;
       put(K_LAST, { tab:i, at:at, d:d });
     })
     .catch(function(){
-      if (cached && cached.tab === i && cached.d) {
+      if (cached && cached.tab === i && cached.d && cached.d.from !== undefined) {
         draw(cached.d);
         $("when").textContent = "no internet \u2014 last read " + cached.at;
       }
       else oops("No internet, and nothing saved on this phone yet.");
     });
 }
-function oops(m){ $("out").className = "load"; $("out").innerHTML = esc(m); }
+var BAD_PIN = "The PIN in this app does not match the one in the sheet.";
+var OLD_GS  = "The sheet answered, but not with a report. The Apps Script file "
+            + "is the older one \u2014 put the new OnlineReports.gs in and deploy again.";
+function oops(m){ $("sub").innerHTML = "&nbsp;"; $("out").className = "load"; $("out").innerHTML = esc(m); }
 function card(l,v){ return '<div class="card"><small>'+l+"</small><b>"+v+"</b></div>"; }
 
 function draw(d){
