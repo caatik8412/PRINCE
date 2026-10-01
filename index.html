@@ -70,9 +70,12 @@ th{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#64748b}
 .pad button:active{background:#334155}
 .pad button.alt{background:transparent;font-size:15px;font-weight:600;color:#94a3b8}
 .gate .bad{color:#fca5a5;font-size:14px;min-height:20px}
+#newver{display:none;background:#b45309;color:#fff;text-align:center;padding:10px 12px;
+  font-size:14px;font-weight:700;cursor:pointer}
 </style>
 </head>
 <body>
+<div id="newver" onclick="location.reload()"></div>
 
 <div class="gate" id="gate">
   <h1>Prince Footwear</h1>
@@ -194,6 +197,10 @@ function pick(i){
   var all = get(K_LAST, {});
   if (all && all.tab !== undefined) all = {};          /* the older single-slot cache */
   var cached = all[key];
+  /* A read saved yesterday under "Today" is about yesterday. Showing it now
+     would put yesterday's takings on screen as though they were this morning's,
+     so a cache for a different stretch of days is not drawn at all. */
+  if (cached && cached.d && (cached.d.from !== r[0] || cached.d.to !== r[1])) cached = null;
   if (cached && cached.d && cached.d.from !== undefined) {
     paint(w, cached.d); $("when").textContent = "last read " + cached.at;
   } else { $("sub").innerHTML="&nbsp;"; $("out").className = "load"; $("out").textContent = "Loading…"; }
@@ -226,7 +233,8 @@ function pick(i){
         paint(w, cached.d);
         $("when").textContent = "no internet — last read " + cached.at;
       }
-      else oops("No internet, and nothing saved on this phone yet.");
+      else oops("No internet. Nothing saved on this phone for "
+                + (r[0]===r[1] ? dmyOf(r[0]) : "that stretch") + " yet.");
     });
 }
 function paint(w, d){ return w ? drawStaff(d) : draw(d); }
@@ -241,6 +249,10 @@ function hrs(mins){
   if (!mins) return "—";
   var h = Math.floor(mins/60), m = mins%60;
   return h + "h" + (m ? " " + (m<10?"0":"") + m + "m" : "");
+}
+function dmyOf(d){
+  var p = String(d).split("-");
+  return p[2] + "-" + p[1] + "-" + p[0];
 }
 function dmyShort(d){
   var mo = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -345,6 +357,30 @@ function draw(d){
   if (!d.bills && !d.retTotal) h = '<div class="load">Nothing billed in this period.</div>';
   var o = $("out"); o.className = ""; o.innerHTML = h;
 }
+
+
+/* ---------- keeping itself up to date ----------
+   Added to a home screen, the page is kept by the phone, and a new one put on
+   the site is not picked up until the phone feels like it. So it asks the site
+   for its own file, past the phone's own copy, and compares the build. A newer
+   one on the site puts a bar at the top; tapping it loads the new page. */
+var APP_BUILD = "1.0.50";
+function checkBuild(){
+  if (!navigator.onLine) return;
+  fetch(location.href.split("#")[0] + (location.search?"&":"?") + "v=" + Date.now(),
+        { cache:"no-store" })
+    .then(function(x){ return x.ok ? x.text() : ""; })
+    .then(function(t){
+      var m = /var APP_BUILD = "([^"]+)"/.exec(t||"");
+      if (!m || m[1] === APP_BUILD) return;
+      var b = document.getElementById("newver");
+      if (b) { b.style.display = "block"; b.textContent =
+        "A newer version is on the site \u2014 tap to update"; }
+    })
+    .catch(function(){});
+}
+checkBuild();
+setInterval(checkBuild, 30*60*1000);
 
 drawPad(); dots();
 if (get(K_OK, 0)) open_(); else $("gate").style.display = "flex";
